@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readDB, writeDB } from "@/lib/db";
+import { readDB, writeDB, uid } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
 const ALLOWED_EMOJIS = ["🔥", "💡", "🎯", "👏", "🚀"];
@@ -46,6 +46,19 @@ export async function POST(req: Request, { params }: { params: { id: string; act
   } else if (params.action === "lock") {
     if (user.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     idea.locked = !idea.locked;
+  } else if (params.action === "report") {
+    if (!Array.isArray(idea.reports)) idea.reports = [];
+    const form = await req.formData().catch(() => null);
+    const reason = String(form?.get("reason") || "").trim().slice(0, 500);
+    const already = idea.reports.find((r) => r.reporterId === user.id && !r.resolvedAt);
+    if (!already) {
+      idea.reports.push({
+        id: uid("rep"),
+        reporterId: user.id,
+        reason: reason || "(no reason given)",
+        createdAt: new Date().toISOString(),
+      });
+    }
   } else if (params.action === "delete") {
     if (idea.authorId !== user.id && user.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

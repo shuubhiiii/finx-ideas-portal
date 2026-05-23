@@ -18,6 +18,8 @@ import {
   Settings,
   Sparkles,
   Bell,
+  Menu,
+  X,
 } from "lucide-react";
 
 interface PortalShellProps {
@@ -30,6 +32,7 @@ export default function PortalShell({ user, unreadNotifications = 0, children }:
   const pathname = usePathname();
   const router = useRouter();
   const [q, setQ] = useState("");
+  const [navOpen, setNavOpen] = useState(false);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -115,6 +118,14 @@ export default function PortalShell({ user, unreadNotifications = 0, children }:
       <div className="flex flex-col min-w-0">
         <header className="sticky top-0 z-30 backdrop-blur-xl bg-white/70 border-b border-silver-200">
           <div className="flex items-center gap-3 px-5 sm:px-8 h-16">
+            <button
+              type="button"
+              onClick={() => setNavOpen(true)}
+              className="lg:hidden btn-ghost p-2"
+              aria-label="Open navigation"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -158,6 +169,93 @@ export default function PortalShell({ user, unreadNotifications = 0, children }:
         </header>
         <main className="p-5 sm:p-8 max-w-6xl w-full mx-auto">{children}</main>
       </div>
+
+      {/* Mobile drawer */}
+      {navOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
+            onClick={() => setNavOpen(false)}
+          />
+          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85%] bg-white border-r border-silver-200 flex flex-col animate-fadeUp">
+            <div className="px-5 h-16 flex items-center justify-between border-b border-silver-200">
+              <div className="flex items-center gap-2.5">
+                <Logo />
+                <div className="leading-tight">
+                  <div className="font-display text-[15px] font-bold">FinX Ideas</div>
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted">portal</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNavOpen(false)}
+                className="btn-ghost p-2"
+                aria-label="Close navigation"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4">
+              <Link
+                href="/portal/new"
+                onClick={() => setNavOpen(false)}
+                className="btn-primary w-full"
+              >
+                <Plus className="h-4 w-4" /> New idea
+              </Link>
+            </div>
+            <nav className="px-3 flex-1 space-y-1 overflow-y-auto">
+              {nav.map((n) => {
+                const active = pathname === n.href || (n.href !== "/portal" && pathname?.startsWith(n.href));
+                return (
+                  <Link
+                    key={n.href}
+                    href={n.href}
+                    onClick={() => setNavOpen(false)}
+                    className={clsx(
+                      "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition",
+                      active
+                        ? "bg-royal-50 text-royal-700 font-medium border border-royal-100"
+                        : "text-ink-muted hover:bg-silver-100 hover:text-ink"
+                    )}
+                  >
+                    <n.icon className="h-4 w-4" />
+                    {n.label}
+                  </Link>
+                );
+              })}
+              {user.role === "admin" && (
+                <Link
+                  href="/admin"
+                  onClick={() => setNavOpen(false)}
+                  className={clsx(
+                    "mt-4 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition",
+                    pathname?.startsWith("/admin")
+                      ? "bg-gradient-to-r from-royal-50 to-pink-50 text-royal-700 font-medium border border-royal-100"
+                      : "text-ink-muted hover:bg-silver-100 hover:text-ink"
+                  )}
+                >
+                  <Shield className="h-4 w-4" /> Admin
+                </Link>
+              )}
+            </nav>
+            <div className="p-4 border-t border-silver-200">
+              <div className="flex items-center gap-3">
+                <div className={clsx("grid h-9 w-9 place-items-center rounded-full text-white text-xs font-semibold bg-gradient-to-br", avatarColor(user.id))}>
+                  {initials(user.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{user.name}</div>
+                  <div className="text-xs text-ink-muted truncate">{user.email}</div>
+                </div>
+                <button onClick={logout} className="btn-ghost p-2" title="Sign out">
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

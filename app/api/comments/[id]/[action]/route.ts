@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readDB, writeDB } from "@/lib/db";
+import { readDB, writeDB, uid } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { notify } from "@/lib/notifications";
 
@@ -40,6 +40,19 @@ export async function POST(req: Request, { params }: { params: { id: string; act
         ideaId: comment.ideaId,
         commentId: comment.id,
         fromUserId: user.id,
+      });
+    }
+  } else if (params.action === "report") {
+    if (!Array.isArray(comment.reports)) comment.reports = [];
+    const form = await req.formData().catch(() => null);
+    const reason = String(form?.get("reason") || "").trim().slice(0, 500);
+    const already = comment.reports.find((r) => r.reporterId === user.id && !r.resolvedAt);
+    if (!already) {
+      comment.reports.push({
+        id: uid("rep"),
+        reporterId: user.id,
+        reason: reason || "(no reason given)",
+        createdAt: new Date().toISOString(),
       });
     }
   } else {

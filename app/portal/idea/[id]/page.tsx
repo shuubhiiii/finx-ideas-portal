@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { formatDate, initials, avatarColor } from "@/lib/format";
 import {
   Bookmark, Heart, Lock, Sparkles, ArrowLeft, Send, ChevronUp, ChevronDown,
-  Pencil, Trash2, Shield, Bell, BellOff, Pin, LockIcon, Unlock,
+  Pencil, Trash2, Shield, Bell, BellOff, Pin, LockIcon, Unlock, Flag,
 } from "lucide-react";
 import StatusBadge, { IDEA_STATUSES, statusLabel } from "@/components/StatusBadge";
 import CommentItem, { type CommentItemProps } from "@/components/CommentItem";
@@ -56,6 +56,7 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
     likedByMe: c.likes?.includes(me.id) || false,
     canEdit: c.authorId === me.id,
     canDelete: c.authorId === me.id || isAdmin,
+    canReport: c.authorId !== me.id,
   });
   const threaded = topLevel.map((c) => ({
     ...toProps(c),
@@ -240,6 +241,34 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
                 </button>
               </form>
             </>
+          )}
+
+          {!isOwner && (
+            <details className="relative">
+              <summary className="btn-ghost text-ink-muted hover:text-rose-700 list-none cursor-pointer" title="Report">
+                <Flag className="h-4 w-4" /> Report
+              </summary>
+              <form
+                action={`/api/ideas/${idea.id}/report`}
+                method="POST"
+                className="absolute right-0 z-20 mt-1 w-72 rounded-xl border border-silver-200 bg-white p-3 shadow-lg"
+              >
+                <label className="label">Reason</label>
+                <textarea
+                  name="reason"
+                  rows={3}
+                  required
+                  maxLength={500}
+                  className="input mt-1 resize-none"
+                  placeholder="Why is this content a problem?"
+                />
+                <div className="mt-2 flex justify-end">
+                  <button type="submit" className="btn-primary text-xs">
+                    <Flag className="h-3.5 w-3.5" /> Submit report
+                  </button>
+                </div>
+              </form>
+            </details>
           )}
         </div>
 

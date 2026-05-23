@@ -1,15 +1,19 @@
 import Link from "next/link";
 import { readDB } from "@/lib/db";
-import { Shield, Users, Inbox, Sparkles, Layers } from "lucide-react";
+import { Shield, Users, Inbox, Sparkles, Layers, Flag } from "lucide-react";
 
 export default function AdminDashboard() {
   const db = readDB();
   const pending = db.requests.filter((r) => r.status === "pending").length;
   const approvedUsers = db.users.filter((u) => u.status === "approved").length;
   const suspended = db.users.filter((u) => u.status === "suspended").length;
+  const pendingReports =
+    db.ideas.reduce((n, i) => n + (i.reports || []).filter((r) => !r.resolvedAt).length, 0) +
+    db.comments.reduce((n, c) => n + (c.reports || []).filter((r) => !r.resolvedAt).length, 0);
 
   const cards = [
     { href: "/admin/requests", label: "Pending requests", value: pending, icon: Inbox, accent: "from-royal-500 to-royal-700" },
+    { href: "/admin/reports", label: "Open reports", value: pendingReports, icon: Flag, accent: "from-rose-500 to-rose-700" },
     { href: "/admin/members", label: "Approved members", value: approvedUsers, icon: Users, accent: "from-emerald-500 to-teal-600" },
     { href: "/admin/ideas", label: "Total ideas", value: db.ideas.length, icon: Sparkles, accent: "from-pink-500 to-rose-600" },
     { href: "/admin/categories", label: "Categories", value: db.categories.length, icon: Layers, accent: "from-amber-500 to-orange-600" },

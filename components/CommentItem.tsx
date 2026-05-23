@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import clsx from "clsx";
-import { Pencil, Trash2, X, Save, Heart, MessageSquare, Send } from "lucide-react";
+import { Pencil, Trash2, X, Save, Heart, MessageSquare, Send, Flag } from "lucide-react";
 import { formatDate, initials, avatarColor } from "@/lib/format";
 
 export interface CommentItemProps {
@@ -18,6 +18,7 @@ export interface CommentItemProps {
   canEdit: boolean;
   canDelete: boolean;
   canReply?: boolean;
+  canReport?: boolean;
   replies?: Omit<CommentItemProps, "replies" | "canReply">[];
 }
 
@@ -37,7 +38,7 @@ function Avatar({ authorId, authorName }: { authorId: string; authorName?: strin
 function CommentBody(props: CommentItemProps) {
   const {
     id, ideaId, authorId, authorName, createdAt, updatedAt,
-    bodyHtml, rawBody, likes, likedByMe, canEdit, canDelete, canReply,
+    bodyHtml, rawBody, likes, likedByMe, canEdit, canDelete, canReply, canReport,
   } = props;
   const [editing, setEditing] = useState(false);
   const [replying, setReplying] = useState(false);
@@ -140,6 +141,33 @@ function CommentBody(props: CommentItemProps) {
             >
               <MessageSquare className="h-3.5 w-3.5" /> Reply
             </button>
+          )}
+          {canReport && (
+            <details className="relative ml-auto">
+              <summary className="btn-ghost p-2 text-xs text-ink-muted hover:text-rose-700 list-none cursor-pointer" title="Report">
+                <Flag className="h-3.5 w-3.5" />
+              </summary>
+              <form
+                action={`/api/comments/${id}/report`}
+                method="POST"
+                className="absolute right-0 z-20 mt-1 w-64 rounded-xl border border-silver-200 bg-white p-3 shadow-lg"
+              >
+                <label className="label">Reason</label>
+                <textarea
+                  name="reason"
+                  rows={3}
+                  required
+                  maxLength={500}
+                  className="input mt-1 resize-none text-sm"
+                  placeholder="Why is this comment a problem?"
+                />
+                <div className="mt-2 flex justify-end">
+                  <button type="submit" className="btn-primary text-xs">
+                    <Flag className="h-3.5 w-3.5" /> Report
+                  </button>
+                </div>
+              </form>
+            </details>
           )}
         </div>
       )}
