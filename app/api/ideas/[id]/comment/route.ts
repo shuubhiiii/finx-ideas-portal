@@ -8,11 +8,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   const form = await req.formData().catch(() => null);
   const text = String(form?.get("body") || "").trim();
+  const parentId = String(form?.get("parentId") || "").trim() || undefined;
   if (!text) return NextResponse.redirect(new URL(`/portal/idea/${params.id}`, req.url), { status: 303 });
 
   const db = readDB();
   const idea = db.ideas.find((i) => i.id === params.id);
   if (!idea) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Validate parent; only allow 1-level nesting (replies to replies attach to root parent)
+  let validParentId: string | undefined;
+  if (parentId) {
+    const parent = db.comments.find((c) => c.id === parentId && c.ideaId === idea.id);
+    if (parent) validParentId = parent.parentId ? parent.parentId : parent.id;
+  }
 
   db.comments.push({
     id: uid("cm"),
@@ -20,7 +28,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     authorId: user.id,
     body: text,
     createdAt: new Date().toISOString(),
+    parentId: validParentId,
+    likes: [],
   });
   writeDB(db);
-  return NextResponse.redirect(new URL(`/portal/idea/${params.id}`, req.url), { status: 303 });
+  return NextResponse.redirect(new URL(`/portal/idea/${params.id}#comments`, req.url), { status: 303 });
 }

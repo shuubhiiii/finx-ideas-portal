@@ -39,6 +39,7 @@ export interface Idea {
   category: string;
   tags: string[];
   visibility: "community" | "internal";
+  createdAt: string;
   updatedAt?: string;
   status: IdeaStatus;
   statusNote?: string;
@@ -54,8 +55,9 @@ export interface Comment {
   authorId: string;
   body: string;
   createdAt: string;
-  updatedAt?ing;
-  createdAt: string;
+  updatedAt?: string;
+  parentId?: string;
+  likes?: string[]; // userIds
 }
 
 export interface CollabSpace {
@@ -66,6 +68,25 @@ export interface CollabSpace {
   createdAt: string;
 }
 
+export type NotificationType =
+  | "comment_on_idea"
+  | "reply_to_comment"
+  | "mention"
+  | "status_change"
+  | "comment_like";
+
+export interface Notification {
+  id: string;
+  userId: string; // recipient
+  type: NotificationType;
+  ideaId?: string;
+  commentId?: string;
+  fromUserId?: string;
+  text?: string;
+  createdAt: string;
+  readAt?: string;
+}
+
 export interface DB {
   users: User[];
   requests: AccessRequest[];
@@ -73,6 +94,7 @@ export interface DB {
   comments: Comment[];
   categories: string[];
   spaces: CollabSpace[];
+  notifications?: Notification[];
 }
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -90,12 +112,16 @@ export function readDB(): DB {
   ensure();
   const raw = fs.readFileSync(DB_FILE, "utf-8");
   const db = JSON.parse(raw) as DB;
-    if (!i.status) i.status = "new";
-  // Backfill vote arrays on older records
+  // Backfill fields on older records
   for (const i of db.ideas) {
     if (!Array.isArray(i.upvotes)) i.upvotes = [];
     if (!Array.isArray(i.downvotes)) i.downvotes = [];
+    if (!i.status) i.status = "new";
   }
+  for (const c of db.comments) {
+    if (!Array.isArray(c.likes)) c.likes = [];
+  }
+  if (!Array.isArray(db.notifications)) db.notifications = [];
   return db;
 }
 

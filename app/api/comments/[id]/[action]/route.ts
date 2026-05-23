@@ -19,17 +19,23 @@ export async function POST(req: Request, { params }: { params: { id: string; act
     const form = await req.formData().catch(() => null);
     const body = String(form?.get("body") || "").trim();
     if (!body) {
-      return NextResponse.redirect(new URL(`/portal/idea/${comment.ideaId}`, req.url), { status: 303 });
+      return NextResponse.redirect(new URL(`/portal/idea/${comment.ideaId}#comments`, req.url), { status: 303 });
     }
     comment.body = body;
     comment.updatedAt = new Date().toISOString();
   } else if (params.action === "delete") {
     if (!isOwner && !isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    db.comments.splice(idx, 1);
+    // Also remove any replies attached to this comment
+    db.comments = db.comments.filter((c) => c.id !== comment.id && c.parentId !== comment.id);
+  } else if (params.action === "like") {
+    if (!Array.isArray(comment.likes)) comment.likes = [];
+    const i = comment.likes.indexOf(user.id);
+    if (i >= 0) comment.likes.splice(i, 1);
+    else comment.likes.push(user.id);
   } else {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
 
   writeDB(db);
-  return NextResponse.redirect(new URL(`/portal/idea/${comment.ideaId}`, req.url), { status: 303 });
+  return NextResponse.redirect(new URL(`/portal/idea/${comment.ideaId}#comments`, req.url), { status: 303 });
 }

@@ -9,7 +9,8 @@ import {
   Pencil, Trash2, Shield,
 } from "lucide-react";
 import StatusBadge, { IDEA_STATUSES, statusLabel } from "@/components/StatusBadge";
-import CommentItem from "@/components/CommentItem";
+import CommentItem, { type CommentItemProps } from "@/components/CommentItem";
+import { renderMarkdown } from "@/lib/markdown";
 
 export default function IdeaDetailPage({ params }: { params: { id: string } }) {
   const me = getCurrentUser()!;
@@ -17,10 +18,11 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
   const idea = db.ideas.find((i) => i.id === params.id);
   if (!idea) return notFound();
   const author = db.users.find((u) => u.id === idea.authorId);
-  const comments = db.comments
+  const allComments = db.comments
     .filter((c) => c.ideaId === idea.id)
     .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt));
   const userMap = Object.fromEntries(db.users.map((u) => [u.id, u]));
+
   const liked = idea.likes.includes(me.id);
   const bookmarked = idea.bookmarks.includes(me.id);
   const upvoted = idea.upvotes?.includes(me.id) ?? false;
@@ -28,6 +30,37 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
   const score = (idea.upvotes?.length || 0) - (idea.downvotes?.length || 0);
   const isOwner = idea.authorId === me.id;
   const isAdmin = me.role === "admin";
+
+  // Build threaded comment props
+  const topLevel = allComments.filter((c) => !c.parentId);
+  const repliesByParent = new Map<string, typeof allComments>();
+  for (const c of allComments) {
+    if (c.parentId) {
+      const arr = repliesByParent.get(c.parentId) || [];
+      arr.push(c);
+      repliesByParent.set(c.parentId, arr);
+    }
+  }
+  const toProps = (c: (typeof allComments)[number]): CommentItemProps => ({
+    id: c.id,
+    ideaId: idea.id,
+    authorId: c.authorId,
+    authorName: userMap[c.authorId]?.name,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+    bodyHtml: renderMarkdown(c.body, db.users),
+    rawBody: c.body,
+    likes: c.likes?.length || 0,
+    likedByMe: c.likes?.includes(me.id) || false,
+    canEdit: c.authorId === me.id,
+    canDelete: c.authorId === me.id || isAdmin,
+  });
+  const threaded = topLevel.map((c) => ({
+    ...toProps(c),
+    replies: (repliesByParent.get(c.id) || []).map(toProps),
+  }));
+
+  const bodyHtml = renderMarkdown(idea.body, db.users);
 
   return (
     <div className="max-w-3xl">
@@ -76,11 +109,18 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
           </div>
         )}
 
-        <div className="mt-6 whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{idea.body}</div>
+        <div
+          className="prose-idea mt-6 text-[15px] leading-relaxed text-ink space-y-3"
+          dangerouslySetInnerHTML={{ __html: bodyHtml }}
+        />
 
         {idea.tags.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-1.5">
-            {idea.tags.map((t) => <span key={t} className="chip">#{t}</span>)}
+            {idea.tags.map((t) => (
+              <Link key={t} href={`/portal/tag/${encodeURIComponent(t)}`} className="chip hover:bg-silver-100">
+                #{t}
+              </Link>
+            ))}
           </div>
         )}
 
@@ -179,25 +219,22 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
       </article>
 
       {/* Comments */}
-      <section className="mt-8">
-        <h2 className="font-display text-xl font-semibold">Discussion ({comments.length})</h2>
+      <section id="comments" className="mt-8">
+        <h2 className="font-display text-xl font-semibold">Discussion ({allComments.length})</h2>
         <form action={`/api/ideas/${idea.id}/comment`} method="POST" className="mt-4 card p-4">
           <textarea name="body" required rows={3} className="input resize-none" placeholder="Share a thought, a critique, or a build idea…" />
+          <div className="mt-1 text-xs text-ink-muted">
+            Tip: supports **bold**, *italic*, `code`, [links](https://), lists, and @mentions.
+          </div>
           <div className="mt-3 flex justify-end">
             <button className="btn-primary" type="submit"><Send className="h-4 w-4" /> Post</button>
           </div>
         </form>
 
         <div className="mt-5 grid gap-3">
-          {comments.length === 0 && <div className="text-sm text-ink-muted">No comments yet — be the first.</div>}
-          {comments.map((c) => (
-            <CommentItem
-              key={c.id}
-              comment={c}
-              author={userMap[c.authorId]}
-              canEdit={c.authorId === me.id}
-              canDelete={c.authorId === me.id || isAdmin}
-            />
+          {threaded.length === 0 && <div className="text-sm text-ink-muted">No comments yet — be the first.</div>}
+          {threaded.map((c) => (
+            <CommentItem key={c.id} {...c} />
           ))}
         </div>
       </section>
