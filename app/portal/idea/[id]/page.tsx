@@ -6,10 +6,11 @@ import { getCurrentUser } from "@/lib/auth";
 import { formatDate, initials, avatarColor } from "@/lib/format";
 import {
   Bookmark, Heart, Lock, Sparkles, ArrowLeft, Send, ChevronUp, ChevronDown,
-  Pencil, Trash2, Shield,
+  Pencil, Trash2, Shield, Bell, BellOff, Pin, LockIcon, Unlock,
 } from "lucide-react";
 import StatusBadge, { IDEA_STATUSES, statusLabel } from "@/components/StatusBadge";
 import CommentItem, { type CommentItemProps } from "@/components/CommentItem";
+import ReactionBar from "@/components/ReactionBar";
 import { renderMarkdown } from "@/lib/markdown";
 
 export default function IdeaDetailPage({ params }: { params: { id: string } }) {
@@ -30,6 +31,7 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
   const score = (idea.upvotes?.length || 0) - (idea.downvotes?.length || 0);
   const isOwner = idea.authorId === me.id;
   const isAdmin = me.role === "admin";
+  const subscribed = (idea.subscribers || []).includes(me.id);
 
   // Build threaded comment props
   const topLevel = allComments.filter((c) => !c.parentId);
@@ -87,7 +89,9 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
               {author ? initials(author.name) : "??"}
             </div>
             <div>
-              <div className="text-sm font-medium">{author?.name || "Unknown"}</div>
+              <Link href={`/portal/profile/${idea.authorId}`} className="text-sm font-medium hover:text-royal-700">
+                {author?.name || "Unknown"}
+              </Link>
               <div className="text-xs text-ink-muted">
                 {formatDate(idea.createdAt)} · {idea.category}
                 {idea.updatedAt && idea.updatedAt !== idea.createdAt && (
@@ -97,6 +101,12 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            {idea.pinned && (
+              <span className="chip-royal" title="Pinned"><Pin className="h-3 w-3" /> Pinned</span>
+            )}
+            {idea.locked && (
+              <span className="chip" title="Discussion locked"><LockIcon className="h-3 w-3" /> Locked</span>
+            )}
             {idea.visibility === "internal" && (
               <span className="chip"><Lock className="h-3 w-3" /> Internal</span>
             )}
@@ -138,6 +148,14 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
           </div>
         )}
 
+        <div className="mt-5">
+          <ReactionBar
+            ideaId={idea.id}
+            reactions={idea.reactions || {}}
+            currentUserId={me.id}
+          />
+        </div>
+
         <div className="mt-7 flex flex-wrap items-center gap-2 pt-5 border-t border-silver-200">
           <form action={`/api/ideas/${idea.id}/upvote`} method="POST">
             <button
@@ -178,8 +196,34 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
               <Bookmark className="h-4 w-4" /> {bookmarked ? "Saved" : "Save"}
             </button>
           </form>
+          <form action={`/api/ideas/${idea.id}/subscribe`} method="POST">
+            <button
+              className={clsx("btn-ghost", subscribed && "text-royal-700 bg-royal-50")}
+              type="submit"
+              title={subscribed ? "Unsubscribe from updates" : "Subscribe to updates"}
+            >
+              {subscribed ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+              {subscribed ? "Subscribed" : "Subscribe"}
+            </button>
+          </form>
 
           <div className="flex-1" />
+
+          {isAdmin && (
+            <>
+              <form action={`/api/ideas/${idea.id}/pin`} method="POST">
+                <button type="submit" className={clsx("btn-ghost", idea.pinned && "text-royal-700 bg-royal-50")} title={idea.pinned ? "Unpin" : "Pin"}>
+                  <Pin className="h-4 w-4" /> {idea.pinned ? "Unpin" : "Pin"}
+                </button>
+              </form>
+              <form action={`/api/ideas/${idea.id}/lock`} method="POST">
+                <button type="submit" className={clsx("btn-ghost", idea.locked && "text-amber-700 bg-amber-50")} title={idea.locked ? "Unlock" : "Lock discussion"}>
+                  {idea.locked ? <Unlock className="h-4 w-4" /> : <LockIcon className="h-4 w-4" />}
+                  {idea.locked ? "Unlock" : "Lock"}
+                </button>
+              </form>
+            </>
+          )}
 
           {(isOwner || isAdmin) && (
             <>
@@ -258,15 +302,21 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
       {/* Comments */}
       <section id="comments" className="mt-8">
         <h2 className="font-display text-xl font-semibold">Discussion ({allComments.length})</h2>
-        <form action={`/api/ideas/${idea.id}/comment`} method="POST" className="mt-4 card p-4">
-          <textarea name="body" required rows={3} className="input resize-none" placeholder="Share a thought, a critique, or a build idea…" />
-          <div className="mt-1 text-xs text-ink-muted">
-            Tip: supports **bold**, *italic*, `code`, [links](https://), lists, and @mentions.
+        {idea.locked ? (
+          <div className="mt-4 card p-4 text-sm text-ink-muted flex items-center gap-2">
+            <LockIcon className="h-4 w-4" /> Discussion is locked. No new comments can be posted.
           </div>
-          <div className="mt-3 flex justify-end">
-            <button className="btn-primary" type="submit"><Send className="h-4 w-4" /> Post</button>
-          </div>
-        </form>
+        ) : (
+          <form action={`/api/ideas/${idea.id}/comment`} method="POST" className="mt-4 card p-4">
+            <textarea name="body" required rows={3} className="input resize-none" placeholder="Share a thought, a critique, or a build idea…" />
+            <div className="mt-1 text-xs text-ink-muted">
+              Tip: supports **bold**, *italic*, `code`, [links](https://), lists, and @mentions.
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button className="btn-primary" type="submit"><Send className="h-4 w-4" /> Post</button>
+            </div>
+          </form>
+        )}
 
         <div className="mt-5 grid gap-3">
           {threaded.length === 0 && <div className="text-sm text-ink-muted">No comments yet — be the first.</div>}

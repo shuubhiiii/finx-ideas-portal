@@ -40,13 +40,17 @@ export default function IdeaCard({
             {author ? initials(author.name) : "??"}
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-medium truncate">{author?.name || "Unknown member"}</div>
+            <Link href={`/portal/profile/${idea.authorId}`} className="text-sm font-medium truncate hover:text-royal-700">
+              {author?.name || "Unknown member"}
+            </Link>
             <div className="text-xs text-ink-muted truncate">
               {formatDate(idea.createdAt)} · {idea.category}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
+          {idea.pinned && <span className="chip-royal"><span className="text-[10px] mr-1">📌</span> Pinned</span>}
+          {idea.locked && <span className="chip"><Lock className="h-3 w-3" /> Locked</span>}
           {idea.visibility === "internal" && (
             <span className="chip"><Lock className="h-3 w-3" /> Internal</span>
           )}
@@ -73,7 +77,7 @@ export default function IdeaCard({
       {idea.tags.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-1.5">
           {idea.tags.map((t) => (
-            <span key={t} className="chip">#{t}</span>
+            <Link key={t} href={`/portal/tag/${encodeURIComponent(t)}`} className="chip hover:bg-silver-100">#{t}</Link>
           ))}
         </div>
       )}

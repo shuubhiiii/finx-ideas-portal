@@ -54,6 +54,9 @@ export default function FeedPage({
     ideas.sort((a, b) => (commentsByIdea[b.id] || 0) - (commentsByIdea[a.id] || 0));
   }
 
+  // Pinned ideas float to the top regardless of sort
+  ideas.sort((a, b) => Number(b.pinned || false) - Number(a.pinned || false));
+
   const buildQs = (overrides: Partial<{ sort: SortKey; cat: string; q: string }>) => {
     const params = new URLSearchParams();
     const next = { sort, cat, q, ...overrides };

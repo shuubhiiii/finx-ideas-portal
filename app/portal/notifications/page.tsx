@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { formatDate, initials, avatarColor } from "@/lib/format";
 import clsx from "clsx";
 import {
-  Bell, MessageSquare, AtSign, Heart, ListChecks, Reply, CheckCheck, ArrowRight,
+  Bell, MessageSquare, AtSign, Heart, ListChecks, Reply, CheckCheck, ArrowRight, UserPlus, Megaphone,
 } from "lucide-react";
 
 const TYPE_META: Record<string, { icon: typeof Bell; label: string; color: string }> = {
@@ -13,6 +13,8 @@ const TYPE_META: Record<string, { icon: typeof Bell; label: string; color: strin
   mention: { icon: AtSign, label: "mentioned you", color: "text-violet-700 bg-violet-50" },
   status_change: { icon: ListChecks, label: "updated status of your idea", color: "text-emerald-700 bg-emerald-50" },
   comment_like: { icon: Heart, label: "liked your comment", color: "text-rose-600 bg-rose-50" },
+  new_follower: { icon: UserPlus, label: "started following you", color: "text-emerald-700 bg-emerald-50" },
+  subscribed_comment: { icon: Megaphone, label: "new comment on an idea you follow", color: "text-amber-700 bg-amber-50" },
 };
 
 export default function NotificationsPage() {
@@ -58,7 +60,9 @@ export default function NotificationsPage() {
             ? n.commentId
               ? `/portal/idea/${n.ideaId}#comments`
               : `/portal/idea/${n.ideaId}`
-            : "/portal";
+            : n.type === "new_follower" && n.fromUserId
+              ? `/portal/profile/${n.fromUserId}`
+              : "/portal";
           return (
             <div
               key={n.id}

@@ -40,6 +40,11 @@ export async function POST(req: Request) {
     likes: [],
     upvotes: [],
     downvotes: [],
+    subscribers: [user.id], // author auto-subscribes
+    reactions: {},
+    pinned: false,
+    locked: false,
+    reports: [],
   };
   db.ideas.unshift(idea);
   writeDB(db);

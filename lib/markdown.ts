@@ -93,7 +93,7 @@ export function renderMarkdown(input: string, users: User[] = []): string {
     text = text.replace(/(^|\s|>)@([a-zA-Z0-9._-]+)/g, (m, pre, name) => {
       const u = byHandle.get(name.toLowerCase());
       if (!u) return m;
-      return `${pre}<a href="/portal/profile?u=${u.id}" class="text-royal-700 font-medium hover:underline">@${name}</a>`;
+      return `${pre}<a href="/portal/profile/${u.id}" class="text-royal-700 font-medium hover:underline">@${name}</a>`;
     });
   }
 

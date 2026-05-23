@@ -16,6 +16,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const db = readDB();
   const idea = db.ideas.find((i) => i.id === params.id);
   if (!idea) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (idea.locked) {
+    return NextResponse.redirect(new URL(`/portal/idea/${idea.id}#comments`, req.url), { status: 303 });
+  }
 
   // Validate parent; only allow 1-level nesting
   let validParentId: string | undefined;
@@ -37,9 +40,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     createdAt: new Date().toISOString(),
     parentId: validParentId,
     likes: [],
+    reports: [],
   });
 
+  // Auto-subscribe commenter to the idea
+  if (!Array.isArray(idea.subscribers)) idea.subscribers = [];
+  if (!idea.subscribers.includes(user.id)) idea.subscribers.push(user.id);
+
   // Notifications
+  const notified = new Set<string>([user.id]);
   if (parentAuthorId) {
     notify(db, {
       userId: parentAuthorId,
@@ -49,6 +58,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       fromUserId: user.id,
       text: idea.title,
     });
+    notified.add(parentAuthorId);
   } else {
     notify(db, {
       userId: idea.authorId,
@@ -58,23 +68,33 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       fromUserId: user.id,
       text: idea.title,
     });
+    notified.add(idea.authorId);
   }
   const mentioned = extractMentions(text, db.users);
-  const alreadyNotified = new Set<string>([
-    user.id,
-    parentAuthorId || "",
-    !parentAuthorId ? idea.authorId : "",
-  ]);
-  for (const uid2 of mentioned) {
-    if (alreadyNotified.has(uid2)) continue;
+  for (const mid of mentioned) {
+    if (notified.has(mid)) continue;
     notify(db, {
-      userId: uid2,
+      userId: mid,
       type: "mention",
       ideaId: idea.id,
       commentId: newId,
       fromUserId: user.id,
       text: idea.title,
     });
+    notified.add(mid);
+  }
+  // Notify other subscribers (not commenter, not already notified)
+  for (const sid of idea.subscribers) {
+    if (notified.has(sid)) continue;
+    notify(db, {
+      userId: sid,
+      type: "subscribed_comment",
+      ideaId: idea.id,
+      commentId: newId,
+      fromUserId: user.id,
+      text: idea.title,
+    });
+    notified.add(sid);
   }
 
   writeDB(db);

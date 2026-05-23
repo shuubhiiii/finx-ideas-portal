@@ -28,6 +28,7 @@ export interface User {
   bio?: string;
   link?: string;
   joinedAt: string;
+  following?: string[]; // userIds this user follows
 }
 
 export interface Idea {
@@ -47,6 +48,11 @@ export interface Idea {
   likes: string[]; // userIds
   upvotes: string[]; // userIds who upvoted
   downvotes: string[]; // userIds who downvoted
+  subscribers?: string[]; // userIds subscribed to activity on this idea
+  reactions?: Record<string, string[]>; // emoji -> userIds
+  pinned?: boolean;
+  locked?: boolean;
+  reports?: Report[];
 }
 
 export interface Comment {
@@ -58,6 +64,16 @@ export interface Comment {
   updatedAt?: string;
   parentId?: string;
   likes?: string[]; // userIds
+  reports?: Report[];
+}
+
+export interface Report {
+  id: string;
+  reporterId: string;
+  reason: string;
+  createdAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
 }
 
 export interface CollabSpace {
@@ -73,7 +89,9 @@ export type NotificationType =
   | "reply_to_comment"
   | "mention"
   | "status_change"
-  | "comment_like";
+  | "comment_like"
+  | "new_follower"
+  | "subscribed_comment";
 
 export interface Notification {
   id: string;
@@ -113,13 +131,22 @@ export function readDB(): DB {
   const raw = fs.readFileSync(DB_FILE, "utf-8");
   const db = JSON.parse(raw) as DB;
   // Backfill fields on older records
+  for (const u of db.users) {
+    if (!Array.isArray(u.following)) u.following = [];
+  }
   for (const i of db.ideas) {
     if (!Array.isArray(i.upvotes)) i.upvotes = [];
     if (!Array.isArray(i.downvotes)) i.downvotes = [];
     if (!i.status) i.status = "new";
+    if (!Array.isArray(i.subscribers)) i.subscribers = [i.authorId];
+    if (!i.reactions || typeof i.reactions !== "object") i.reactions = {};
+    if (typeof i.pinned !== "boolean") i.pinned = false;
+    if (typeof i.locked !== "boolean") i.locked = false;
+    if (!Array.isArray(i.reports)) i.reports = [];
   }
   for (const c of db.comments) {
     if (!Array.isArray(c.likes)) c.likes = [];
+    if (!Array.isArray(c.reports)) c.reports = [];
   }
   if (!Array.isArray(db.notifications)) db.notifications = [];
   return db;

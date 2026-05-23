@@ -1,7 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Loader2, AlertTriangle, Lock, Globe2 } from "lucide-react";
+import { Sparkles, Loader2, AlertTriangle, Lock, Globe2, FileText, Trash2 } from "lucide-react";
+
+const DRAFT_KEY = "finx-idea-draft-v1";
 
 export default function NewIdeaForm({ categories }: { categories: string[] }) {
   const router = useRouter();
@@ -10,6 +12,68 @@ export default function NewIdeaForm({ categories }: { categories: string[] }) {
   const [duplicates, setDuplicates] = useState<{ id: string; title: string }[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
+
+  // Restore draft on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    try {
+      const d = JSON.parse(raw);
+      const f = formRef.current;
+      if (!f) return;
+      const setVal = (name: string, v: string) => {
+        const el = f.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement | RadioNodeList | null;
+        if (!el) return;
+        if (el instanceof RadioNodeList) {
+          for (const node of Array.from(el)) {
+            const r = node as HTMLInputElement;
+            r.checked = r.value === v;
+          }
+        } else {
+          (el as HTMLInputElement).value = v;
+        }
+      };
+      if (d.title || d.body) {
+        setVal("title", d.title || "");
+        setVal("body", d.body || "");
+        if (d.category) setVal("category", d.category);
+        if (d.tags) setVal("tags", d.tags);
+        if (d.visibility) setVal("visibility", d.visibility);
+        setDraftRestored(true);
+      }
+    } catch {}
+  }, []);
+
+  function saveDraft() {
+    const f = formRef.current;
+    if (!f) return;
+    const fd = new FormData(f);
+    const data = {
+      title: String(fd.get("title") || ""),
+      body: String(fd.get("body") || ""),
+      category: String(fd.get("category") || ""),
+      tags: String(fd.get("tags") || ""),
+      visibility: String(fd.get("visibility") || "community"),
+    };
+    if (!data.title && !data.body) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+    } catch {}
+  }
+
+  function discardDraft() {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {}
+    const f = formRef.current;
+    if (f) f.reset();
+    setDraftRestored(false);
+    setSummary(null);
+    setDuplicates([]);
+  }
 
   async function generateAI(title: string, body: string) {
     if (!title || !body) return;
@@ -51,6 +115,7 @@ export default function NewIdeaForm({ categories }: { categories: string[] }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not publish");
+      try { localStorage.removeItem(DRAFT_KEY); } catch {}
       router.push(`/portal/idea/${data.id}`);
       router.refresh();
     } catch (err: any) {
@@ -61,7 +126,17 @@ export default function NewIdeaForm({ categories }: { categories: string[] }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-5">
+    <form ref={formRef} onSubmit={onSubmit} onChange={saveDraft} className="grid gap-5">
+      {draftRestored && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5 text-sm text-amber-900">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4" /> Restored an unfinished draft.
+          </div>
+          <button type="button" onClick={discardDraft} className="inline-flex items-center gap-1 text-amber-800 hover:text-amber-900 text-xs font-medium">
+            <Trash2 className="h-3.5 w-3.5" /> Discard
+          </button>
+        </div>
+      )}
       <div>
         <label className="label">Title</label>
         <input
