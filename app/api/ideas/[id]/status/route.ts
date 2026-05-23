@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readDB, writeDB, type IdeaStatus } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { notify } from "@/lib/notifications";
 
 const VALID: IdeaStatus[] = ["new", "under_review", "in_progress", "shipped", "declined"];
 
@@ -20,10 +21,21 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const idea = db.ideas.find((i) => i.id === params.id);
   if (!idea) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const prev = idea.status;
   idea.status = status;
   idea.statusNote = note || undefined;
   idea.updatedAt = new Date().toISOString();
-  writeDB(db);
 
+  if (prev !== status) {
+    notify(db, {
+      userId: idea.authorId,
+      type: "status_change",
+      ideaId: idea.id,
+      fromUserId: user.id,
+      text: `${idea.title} → ${status}`,
+    });
+  }
+
+  writeDB(db);
   return NextResponse.redirect(new URL(`/portal/idea/${idea.id}`, req.url), { status: 303 });
 }

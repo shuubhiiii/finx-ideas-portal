@@ -17,14 +17,16 @@ import {
   Shield,
   Settings,
   Sparkles,
+  Bell,
 } from "lucide-react";
 
 interface PortalShellProps {
   user: { id: string; name: string; email: string; role: "admin" | "member" };
+  unreadNotifications?: number;
   children: React.ReactNode;
 }
 
-export default function PortalShell({ user, children }: PortalShellProps) {
+export default function PortalShell({ user, unreadNotifications = 0, children }: PortalShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -134,6 +136,19 @@ export default function PortalShell({ user, children }: PortalShellProps) {
               <span className="hidden sm:inline-flex chip-royal">
                 <Sparkles className="h-3.5 w-3.5" /> Private community
               </span>
+              <Link
+                href="/portal/notifications"
+                className="btn-secondary relative"
+                title="Notifications"
+                aria-label={`Notifications${unreadNotifications ? ` (${unreadNotifications} unread)` : ""}`}
+              >
+                <Bell className="h-4 w-4" />
+                {unreadNotifications > 0 && (
+                  <span className="absolute -top-1 -right-1 grid h-5 min-w-[20px] place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white shadow-sm">
+                    {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                  </span>
+                )}
+              </Link>
               <Link href="/portal/profile" className="btn-secondary" title="Profile">
                 <Settings className="h-4 w-4" />
                 <span className="hidden sm:inline">Profile</span>

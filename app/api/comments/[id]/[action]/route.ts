@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { notify } from "@/lib/notifications";
 
 export async function POST(req: Request, { params }: { params: { id: string; action: string } }) {
   const user = getCurrentUser();
@@ -25,13 +26,22 @@ export async function POST(req: Request, { params }: { params: { id: string; act
     comment.updatedAt = new Date().toISOString();
   } else if (params.action === "delete") {
     if (!isOwner && !isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    // Also remove any replies attached to this comment
     db.comments = db.comments.filter((c) => c.id !== comment.id && c.parentId !== comment.id);
   } else if (params.action === "like") {
     if (!Array.isArray(comment.likes)) comment.likes = [];
     const i = comment.likes.indexOf(user.id);
-    if (i >= 0) comment.likes.splice(i, 1);
-    else comment.likes.push(user.id);
+    if (i >= 0) {
+      comment.likes.splice(i, 1);
+    } else {
+      comment.likes.push(user.id);
+      notify(db, {
+        userId: comment.authorId,
+        type: "comment_like",
+        ideaId: comment.ideaId,
+        commentId: comment.id,
+        fromUserId: user.id,
+      });
+    }
   } else {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
