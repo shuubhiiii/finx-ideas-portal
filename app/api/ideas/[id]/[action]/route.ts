@@ -15,7 +15,15 @@ export async function POST(_req: Request, { params }: { params: { id: string; ac
 
   if (params.action === "like") idea.likes = toggle(idea.likes, user.id);
   else if (params.action === "bookmark") idea.bookmarks = toggle(idea.bookmarks, user.id);
-  else return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+  else if (params.action === "upvote") {
+    const had = idea.upvotes.includes(user.id);
+    idea.downvotes = idea.downvotes.filter((x) => x !== user.id);
+    idea.upvotes = had ? idea.upvotes.filter((x) => x !== user.id) : [...idea.upvotes, user.id];
+  } else if (params.action === "downvote") {
+    const had = idea.downvotes.includes(user.id);
+    idea.upvotes = idea.upvotes.filter((x) => x !== user.id);
+    idea.downvotes = had ? idea.downvotes.filter((x) => x !== user.id) : [...idea.downvotes, user.id];
+  } else return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 
   writeDB(db);
   const referer = _req.headers.get("referer") || new URL("/portal", _req.url).toString();

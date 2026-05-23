@@ -6,9 +6,11 @@ import { TrendingUp } from "lucide-react";
 export default function TrendingPage() {
   const me = getCurrentUser()!;
   const db = readDB();
-  const ideas = [...db.ideas].sort(
-    (a, b) => b.likes.length + b.bookmarks.length - (a.likes.length + a.bookmarks.length)
-  );
+  const score = (i: typeof db.ideas[number]) =>
+    (i.upvotes?.length || 0) - (i.downvotes?.length || 0) +
+    i.likes.length * 0.5 +
+    i.bookmarks.length * 0.25;
+  const ideas = [...db.ideas].sort((a, b) => score(b) - score(a));
   const userMap = Object.fromEntries(db.users.map((u) => [u.id, u]));
   const commentCount = db.comments.reduce<Record<string, number>>((acc, c) => {
     acc[c.ideaId] = (acc[c.ideaId] || 0) + 1;

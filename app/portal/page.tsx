@@ -93,16 +93,25 @@ export default function FeedPage({ searchParams }: { searchParams: { q?: string;
           <div className="label mb-3">Trending right now</div>
           <ul className="space-y-3">
             {[...db.ideas]
-              .sort((a, b) => b.likes.length + b.bookmarks.length - (a.likes.length + a.bookmarks.length))
+              .sort(
+                (a, b) =>
+                  (b.upvotes?.length || 0) - (b.downvotes?.length || 0) + b.likes.length * 0.5 + b.bookmarks.length * 0.25 -
+                  ((a.upvotes?.length || 0) - (a.downvotes?.length || 0) + a.likes.length * 0.5 + a.bookmarks.length * 0.25)
+              )
               .slice(0, 4)
-              .map((i) => (
-                <li key={i.id}>
-                  <Link href={`/portal/idea/${i.id}`} className="block text-sm hover:text-royal-700">
-                    <div className="font-medium line-clamp-1">{i.title}</div>
-                    <div className="text-xs text-ink-muted">{i.likes.length} reactions · {i.category}</div>
-                  </Link>
-                </li>
-              ))}
+              .map((i) => {
+                const s = (i.upvotes?.length || 0) - (i.downvotes?.length || 0);
+                return (
+                  <li key={i.id}>
+                    <Link href={`/portal/idea/${i.id}`} className="block text-sm hover:text-royal-700">
+                      <div className="font-medium line-clamp-1">{i.title}</div>
+                      <div className="text-xs text-ink-muted">
+                        {s >= 0 ? `+${s}` : s} votes · {i.likes.length} reactions · {i.category}
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
           </ul>
         </div>
 

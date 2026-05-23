@@ -1,6 +1,6 @@
 import Link from "next/link";
 import clsx from "clsx";
-import { Bookmark, Heart, MessageCircle, Lock, Sparkles } from "lucide-react";
+import { Bookmark, Heart, MessageCircle, Lock, Sparkles, ChevronUp, ChevronDown } from "lucide-react";
 import { formatDate, initials, avatarColor } from "@/lib/format";
 import type { Idea, User } from "@/lib/db";
 
@@ -19,9 +19,15 @@ export default function IdeaCard({
 }) {
   const liked = idea.likes.includes(currentUserId);
   const bookmarked = idea.bookmarks.includes(currentUserId);
+  const upvoted = idea.upvotes?.includes(currentUserId) ?? false;
+  const downvoted = idea.downvotes?.includes(currentUserId) ?? false;
+  const score = (idea.upvotes?.length || 0) - (idea.downvotes?.length || 0);
 
   return (
     <article className="card card-hover p-5 sm:p-6 animate-fadeUp">
+      <div className="flex items-start gap-4">
+        <VoteStack ideaId={idea.id} score={score} upvoted={upvoted} downvoted={downvoted} />
+        <div className="flex-1 min-w-0">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div
@@ -77,7 +83,66 @@ export default function IdeaCard({
         </Link>
         <ActionButton ideaId={idea.id} action="bookmark" active={bookmarked} count={idea.bookmarks.length} icon={Bookmark} label="Save" />
       </div>
+        </div>
+      </div>
     </article>
+  );
+}
+
+function VoteStack({
+  ideaId,
+  score,
+  upvoted,
+  downvoted,
+}: {
+  ideaId: string;
+  score: number;
+  upvoted: boolean;
+  downvoted: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1 shrink-0 -ml-1">
+      <form action={`/api/ideas/${ideaId}/upvote`} method="POST">
+        <button
+          type="submit"
+          aria-label="Upvote"
+          title="Upvote"
+          className={clsx(
+            "grid h-8 w-8 place-items-center rounded-lg border transition",
+            upvoted
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-silver-200 text-ink-muted hover:border-emerald-200 hover:text-emerald-700 hover:bg-emerald-50/60"
+          )}
+        >
+          <ChevronUp className="h-4 w-4" />
+        </button>
+      </form>
+      <span
+        className={clsx(
+          "text-sm font-semibold tabular-nums min-w-[1.5rem] text-center",
+          score > 0 && "text-emerald-700",
+          score < 0 && "text-rose-600",
+          score === 0 && "text-ink-muted"
+        )}
+      >
+        {score}
+      </span>
+      <form action={`/api/ideas/${ideaId}/downvote`} method="POST">
+        <button
+          type="submit"
+          aria-label="Downvote"
+          title="Downvote"
+          className={clsx(
+            "grid h-8 w-8 place-items-center rounded-lg border transition",
+            downvoted
+              ? "border-rose-200 bg-rose-50 text-rose-700"
+              : "border-silver-200 text-ink-muted hover:border-rose-200 hover:text-rose-700 hover:bg-rose-50/60"
+          )}
+        >
+          <ChevronDown className="h-4 w-4" />
+        </button>
+      </form>
+    </div>
   );
 }
 

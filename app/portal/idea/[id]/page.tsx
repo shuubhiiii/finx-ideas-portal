@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { readDB } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { formatDate, initials, avatarColor } from "@/lib/format";
-import { Bookmark, Heart, Lock, Sparkles, ArrowLeft, Send } from "lucide-react";
+import { Bookmark, Heart, Lock, Sparkles, ArrowLeft, Send, ChevronUp, ChevronDown } from "lucide-react";
 
 export default function IdeaDetailPage({ params }: { params: { id: string } }) {
   const me = getCurrentUser()!;
@@ -18,6 +18,9 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
   const userMap = Object.fromEntries(db.users.map((u) => [u.id, u]));
   const liked = idea.likes.includes(me.id);
   const bookmarked = idea.bookmarks.includes(me.id);
+  const upvoted = idea.upvotes?.includes(me.id) ?? false;
+  const downvoted = idea.downvotes?.includes(me.id) ?? false;
+  const score = (idea.upvotes?.length || 0) - (idea.downvotes?.length || 0);
 
   return (
     <div className="max-w-3xl">
@@ -61,7 +64,36 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
           </div>
         )}
 
-        <div className="mt-7 flex items-center gap-2 pt-5 border-t border-silver-200">
+        <div className="mt-7 flex flex-wrap items-center gap-2 pt-5 border-t border-silver-200">
+          <form action={`/api/ideas/${idea.id}/upvote`} method="POST">
+            <button
+              type="submit"
+              className={clsx("btn-ghost", upvoted && "text-emerald-700 bg-emerald-50")}
+              title="Upvote"
+            >
+              <ChevronUp className="h-4 w-4" /> {idea.upvotes?.length || 0}
+            </button>
+          </form>
+          <form action={`/api/ideas/${idea.id}/downvote`} method="POST">
+            <button
+              type="submit"
+              className={clsx("btn-ghost", downvoted && "text-rose-700 bg-rose-50")}
+              title="Downvote"
+            >
+              <ChevronDown className="h-4 w-4" /> {idea.downvotes?.length || 0}
+            </button>
+          </form>
+          <span
+            className={clsx(
+              "text-sm font-semibold tabular-nums px-2",
+              score > 0 && "text-emerald-700",
+              score < 0 && "text-rose-600",
+              score === 0 && "text-ink-muted"
+            )}
+            title="Score"
+          >
+            score {score >= 0 ? `+${score}` : score}
+          </span>
           <form action={`/api/ideas/${idea.id}/like`} method="POST">
             <button className={clsx("btn-ghost", liked && "text-rose-600 bg-rose-50/60")} type="submit">
               <Heart className={clsx("h-4 w-4", liked && "fill-rose-500")} /> {idea.likes.length} reactions

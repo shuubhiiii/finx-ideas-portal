@@ -37,6 +37,8 @@ export async function POST(req: Request) {
     createdAt: new Date().toISOString(),
     bookmarks: [],
     likes: [],
+    upvotes: [],
+    downvotes: [],
   };
   db.ideas.unshift(idea);
   writeDB(db);

@@ -41,6 +41,8 @@ export interface Idea {
   createdAt: string;
   bookmarks: string[]; // userIds
   likes: string[]; // userIds
+  upvotes: string[]; // userIds who upvoted
+  downvotes: string[]; // userIds who downvoted
 }
 
 export interface Comment {
@@ -82,7 +84,13 @@ function ensure() {
 export function readDB(): DB {
   ensure();
   const raw = fs.readFileSync(DB_FILE, "utf-8");
-  return JSON.parse(raw) as DB;
+  const db = JSON.parse(raw) as DB;
+  // Backfill vote arrays on older records
+  for (const i of db.ideas) {
+    if (!Array.isArray(i.upvotes)) i.upvotes = [];
+    if (!Array.isArray(i.downvotes)) i.downvotes = [];
+  }
+  return db;
 }
 
 export function writeDB(db: DB) {
