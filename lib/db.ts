@@ -3,6 +3,7 @@ import path from "node:path";
 
 export type UserStatus = "pending" | "approved" | "rejected" | "suspended";
 export type Role = "member" | "admin";
+export type IdeaStatus = "new" | "under_review" | "in_progress" | "shipped" | "declined";
 
 export interface AccessRequest {
   id: string;
@@ -38,7 +39,9 @@ export interface Idea {
   category: string;
   tags: string[];
   visibility: "community" | "internal";
-  createdAt: string;
+  updatedAt?: string;
+  status: IdeaStatus;
+  statusNote?: string;
   bookmarks: string[]; // userIds
   likes: string[]; // userIds
   upvotes: string[]; // userIds who upvoted
@@ -50,6 +53,8 @@ export interface Comment {
   ideaId: string;
   authorId: string;
   body: string;
+  createdAt: string;
+  updatedAt?ing;
   createdAt: string;
 }
 
@@ -85,6 +90,7 @@ export function readDB(): DB {
   ensure();
   const raw = fs.readFileSync(DB_FILE, "utf-8");
   const db = JSON.parse(raw) as DB;
+    if (!i.status) i.status = "new";
   // Backfill vote arrays on older records
   for (const i of db.ideas) {
     if (!Array.isArray(i.upvotes)) i.upvotes = [];

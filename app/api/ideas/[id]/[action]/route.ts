@@ -23,6 +23,14 @@ export async function POST(_req: Request, { params }: { params: { id: string; ac
     const had = idea.downvotes.includes(user.id);
     idea.upvotes = idea.upvotes.filter((x) => x !== user.id);
     idea.downvotes = had ? idea.downvotes.filter((x) => x !== user.id) : [...idea.downvotes, user.id];
+  } else if (params.action === "delete") {
+    if (idea.authorId !== user.id && user.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    db.ideas = db.ideas.filter((i) => i.id !== idea.id);
+    db.comments = db.comments.filter((c) => c.ideaId !== idea.id);
+    writeDB(db);
+    return NextResponse.redirect(new URL("/portal", _req.url), { status: 303 });
   } else return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 
   writeDB(db);

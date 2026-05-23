@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { Bookmark, Heart, MessageCircle, Lock, Sparkles, ChevronUp, ChevronDown } from "lucide-react";
 import { formatDate, initials, avatarColor } from "@/lib/format";
 import type { Idea, User } from "@/lib/db";
+import StatusBadge from "./StatusBadge";
 
 export default function IdeaCard({
   idea,
@@ -49,6 +50,7 @@ export default function IdeaCard({
           {idea.visibility === "internal" && (
             <span className="chip"><Lock className="h-3 w-3" /> Internal</span>
           )}
+          {idea.status && idea.status !== "new" && <StatusBadge status={idea.status} />}
           <span className="chip-royal">{idea.category}</span>
         </div>
       </div>

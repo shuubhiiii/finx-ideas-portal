@@ -35,6 +35,7 @@ export async function POST(req: Request) {
     tags,
     visibility: visibility as "community" | "internal",
     createdAt: new Date().toISOString(),
+    status: "new" as const,
     bookmarks: [],
     likes: [],
     upvotes: [],

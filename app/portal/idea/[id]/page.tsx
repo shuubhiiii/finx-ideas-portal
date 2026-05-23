@@ -4,7 +4,12 @@ import clsx from "clsx";
 import { readDB } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { formatDate, initials, avatarColor } from "@/lib/format";
-import { Bookmark, Heart, Lock, Sparkles, ArrowLeft, Send, ChevronUp, ChevronDown } from "lucide-react";
+import {
+  Bookmark, Heart, Lock, Sparkles, ArrowLeft, Send, ChevronUp, ChevronDown,
+  Pencil, Trash2, Shield,
+} from "lucide-react";
+import StatusBadge, { IDEA_STATUSES, statusLabel } from "@/components/StatusBadge";
+import CommentItem from "@/components/CommentItem";
 
 export default function IdeaDetailPage({ params }: { params: { id: string } }) {
   const me = getCurrentUser()!;
@@ -21,6 +26,8 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
   const upvoted = idea.upvotes?.includes(me.id) ?? false;
   const downvoted = idea.downvotes?.includes(me.id) ?? false;
   const score = (idea.upvotes?.length || 0) - (idea.downvotes?.length || 0);
+  const isOwner = idea.authorId === me.id;
+  const isAdmin = me.role === "admin";
 
   return (
     <div className="max-w-3xl">
@@ -34,13 +41,19 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
             </div>
             <div>
               <div className="text-sm font-medium">{author?.name || "Unknown"}</div>
-              <div className="text-xs text-ink-muted">{formatDate(idea.createdAt)} · {idea.category}</div>
+              <div className="text-xs text-ink-muted">
+                {formatDate(idea.createdAt)} · {idea.category}
+                {idea.updatedAt && idea.updatedAt !== idea.createdAt && (
+                  <span title={`Edited ${formatDate(idea.updatedAt)}`}> · edited</span>
+                )}
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
             {idea.visibility === "internal" && (
               <span className="chip"><Lock className="h-3 w-3" /> Internal</span>
             )}
+            {idea.status && <StatusBadge status={idea.status} />}
             <span className="chip-royal">{idea.category}</span>
           </div>
         </div>
@@ -53,6 +66,13 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
               <Sparkles className="h-4 w-4" /> AI summary
             </div>
             <div className="mt-1 text-sm text-royal-900/80">{idea.summary}</div>
+          </div>
+        )}
+
+        {idea.statusNote && (
+          <div className="mt-4 rounded-xl border border-silver-200 bg-silver-50/70 p-4 text-sm">
+            <div className="font-medium text-ink">Status note</div>
+            <div className="mt-1 text-ink-muted whitespace-pre-wrap">{idea.statusNote}</div>
           </div>
         )}
 
@@ -104,7 +124,58 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
               <Bookmark className="h-4 w-4" /> {bookmarked ? "Saved" : "Save"}
             </button>
           </form>
+
+          <div className="flex-1" />
+
+          {(isOwner || isAdmin) && (
+            <>
+              <Link href={`/portal/idea/${idea.id}/edit`} className="btn-ghost" title="Edit">
+                <Pencil className="h-4 w-4" /> Edit
+              </Link>
+              <form action={`/api/ideas/${idea.id}/delete`} method="POST">
+                <button
+                  type="submit"
+                  className="btn-ghost text-rose-600 hover:bg-rose-50"
+                  title="Delete idea"
+                >
+                  <Trash2 className="h-4 w-4" /> Delete
+                </button>
+              </form>
+            </>
+          )}
         </div>
+
+        {isAdmin && (
+          <form
+            action={`/api/ideas/${idea.id}/status`}
+            method="POST"
+            className="mt-5 rounded-xl border border-silver-200 bg-silver-50/60 p-4"
+          >
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Shield className="h-4 w-4 text-royal-600" /> Admin controls
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-[200px_1fr_auto] sm:items-end">
+              <div>
+                <label className="label">Status</label>
+                <select name="status" defaultValue={idea.status} className="input mt-1.5">
+                  {IDEA_STATUSES.map((s) => (
+                    <option key={s} value={s}>{statusLabel(s)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Note (optional)</label>
+                <input
+                  name="note"
+                  defaultValue={idea.statusNote || ""}
+                  placeholder="Why this status?"
+                  className="input mt-1.5"
+                />
+              </div>
+              <button type="submit" className="btn-primary">Update</button>
+            </div>
+          </form>
+        )}
       </article>
 
       {/* Comments */}
@@ -119,23 +190,15 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
 
         <div className="mt-5 grid gap-3">
           {comments.length === 0 && <div className="text-sm text-ink-muted">No comments yet — be the first.</div>}
-          {comments.map((c) => {
-            const u = userMap[c.authorId];
-            return (
-              <div key={c.id} className="card p-4">
-                <div className="flex items-center gap-3">
-                  <div className={clsx("grid h-8 w-8 place-items-center rounded-full text-white text-xs font-semibold bg-gradient-to-br", avatarColor(c.authorId))}>
-                    {u ? initials(u.name) : "??"}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium">{u?.name || "Unknown"}</div>
-                    <div className="text-xs text-ink-muted">{formatDate(c.createdAt)}</div>
-                  </div>
-                </div>
-                <div className="mt-3 text-sm whitespace-pre-wrap">{c.body}</div>
-              </div>
-            );
-          })}
+          {comments.map((c) => (
+            <CommentItem
+              key={c.id}
+              comment={c}
+              author={userMap[c.authorId]}
+              canEdit={c.authorId === me.id}
+              canDelete={c.authorId === me.id || isAdmin}
+            />
+          ))}
         </div>
       </section>
     </div>
