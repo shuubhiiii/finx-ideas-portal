@@ -62,6 +62,20 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
 
   const bodyHtml = renderMarkdown(idea.body, db.users);
 
+  // Similar ideas — tag overlap + same category boost
+  const tagSet = new Set(idea.tags.map((t) => t.toLowerCase()));
+  const similar = db.ideas
+    .filter((i) => i.id !== idea.id)
+    .map((i) => {
+      const overlap = i.tags.reduce((n, t) => (tagSet.has(t.toLowerCase()) ? n + 1 : n), 0);
+      const sameCat = i.category === idea.category ? 1 : 0;
+      return { idea: i, score: overlap * 2 + sameCat };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map((x) => x.idea);
+
   return (
     <div className="max-w-3xl">
       <Link href="/portal" className="btn-ghost -ml-2 mb-4"><ArrowLeft className="h-4 w-4" /> Back to feed</Link>
@@ -217,6 +231,29 @@ export default function IdeaDetailPage({ params }: { params: { id: string } }) {
           </form>
         )}
       </article>
+
+      {/* Similar ideas */}
+      {similar.length > 0 && (
+        <section className="mt-8">
+          <h2 className="font-display text-xl font-semibold">Similar ideas</h2>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {similar.map((s) => (
+              <Link
+                key={s.id}
+                href={`/portal/idea/${s.id}`}
+                className="card p-4 card-hover block"
+              >
+                <div className="text-xs text-ink-muted">{s.category}</div>
+                <div className="mt-1 font-medium line-clamp-2">{s.title}</div>
+                <div className="mt-2 text-xs text-ink-muted">
+                  {(s.upvotes?.length || 0) - (s.downvotes?.length || 0) >= 0 ? "+" : ""}
+                  {(s.upvotes?.length || 0) - (s.downvotes?.length || 0)} votes · {s.likes.length} reactions
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Comments */}
       <section id="comments" className="mt-8">
